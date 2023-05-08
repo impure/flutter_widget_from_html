@@ -11,21 +11,45 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_widget_from_html_core:
-    path: ../core
+    git:
+      url: https://github.com/impure/flutter_widget_from_html
+      path: packages/core
+      ref: working_width_fix
   fwfh_cached_network_image:
-    path: ../fwfh_cached_network_image
+    git:
+      url: https://github.com/impure/flutter_widget_from_html
+      path: packages/fwfh_cached_network_image
+      ref: working_width_fix
   fwfh_chewie:
-    path: ../fwfh_chewie
+    git:
+      url: https://github.com/impure/flutter_widget_from_html
+      path: packages/fwfh_chewie
+      ref: working_width_fix
   fwfh_just_audio:
-    path: ../fwfh_just_audio
+    git:
+      url: https://github.com/impure/flutter_widget_from_html
+      path: packages/fwfh_just_audio
+      ref: working_width_fix
   fwfh_svg:
-    path: ../fwfh_svg
+    git:
+      url: https://github.com/impure/flutter_widget_from_html
+      path: packages/fwfh_svg
+      ref: working_width_fix
   fwfh_text_style:
-    path: ../fwfh_text_style
+    git:
+      url: https://github.com/impure/flutter_widget_from_html
+      path: packages/fwfh_text_style
+      ref: working_width_fix
   fwfh_url_launcher:
-    path: ../fwfh_url_launcher
+    git:
+      url: https://github.com/impure/flutter_widget_from_html
+      path: packages/fwfh_url_launcher
+      ref: working_width_fix
   fwfh_webview:
-    path: ../fwfh_webview
+    git:
+      url: https://github.com/impure/flutter_widget_from_html
+      path: packages/fwfh_webview
+      ref: working_width_fix
   html: ^0.15.0
 
 dependency_overrides:
