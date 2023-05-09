@@ -389,7 +389,11 @@ class _TableRenderLayouter {
             // this call is expensive, we try to avoid it as much as possible
             // width being smaller than dry size means the table is too crowded
             // calculating min to avoid breaking line in the middle of a word
-            minWidth = min(availableWidth, child.getMinIntrinsicWidth(double.infinity));
+            if (child is RenderBox) {
+              minWidth = min(availableWidth / min(columnCount, 1), child.getMinIntrinsicWidth(double.infinity));
+            } else {
+              minWidth = min(availableWidth, child.getMinIntrinsicWidth(double.infinity));
+            }
           } catch (minWidthError, stackTrace) {
             minWidth = drySize.width;
             debugPrint('Ignored getMinIntrinsicWidth error: '
