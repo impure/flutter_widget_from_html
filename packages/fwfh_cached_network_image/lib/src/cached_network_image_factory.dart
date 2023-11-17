@@ -18,17 +18,25 @@ mixin CachedNetworkImageFactory on WidgetFactory {
       return super.buildImageWidget(meta, src);
     }
 
-    return CachedNetworkImage(
-      cacheManager: cacheManager,
-      errorWidget: (context, _, error) =>
-          onErrorBuilder(context, meta, error, src) ?? widget0,
-      fit: BoxFit.fill,
-      imageUrl: url,
-      progressIndicatorBuilder: (context, _, progress) {
-        final t = progress.totalSize;
-        final v = t != null && t > 0 ? progress.downloaded / t : null;
-        return onLoadingBuilder(context, meta, v, src) ?? widget0;
-      },
+    return ClipRRect(
+      borderRadius: BorderRadius.all(Radius.circular(10)),
+      child: CachedNetworkImage(
+        cacheManager: cacheManager,
+        errorWidget: (context, _, error) =>
+        onErrorBuilder(context, meta, error, src) ?? widget0,
+        fit: BoxFit.fill,
+        imageUrl: url,
+        progressIndicatorBuilder: (context, _, progress) =>
+        onLoadingBuilder(
+          context,
+          meta,
+          progress.totalSize != null && progress.totalSize! > 0
+              ? progress.downloaded / progress.totalSize!
+              : null,
+          src,
+        ) ??
+            widget0,
+      ),
     );
   }
 }
