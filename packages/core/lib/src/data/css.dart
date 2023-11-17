@@ -42,13 +42,13 @@ class CssBorder {
 
   /// Returns `true` if all sides are unset, all radius are zero.
   bool get isNoOp =>
-      (_all == null || _all == CssBorderSide.none) &&
-      (_bottom == null || _bottom == CssBorderSide.none) &&
-      (_inlineEnd == null || _inlineEnd == CssBorderSide.none) &&
-      (_inlineStart == null || _inlineStart == CssBorderSide.none) &&
-      (_left == null || _left == CssBorderSide.none) &&
-      (_right == null || _right == CssBorderSide.none) &&
-      (_top == null || _top == CssBorderSide.none) &&
+      (_all?.isNoOp != false) &&
+      (_bottom?.isNoOp != false) &&
+      (_inlineEnd?.isNoOp != false) &&
+      (_inlineStart?.isNoOp != false) &&
+      (_left?.isNoOp != false) &&
+      (_right?.isNoOp != false) &&
+      (_top?.isNoOp != false) &&
       radiusBottomLeft == CssRadius.zero &&
       radiusBottomRight == CssRadius.zero &&
       radiusTopLeft == CssRadius.zero &&
@@ -56,6 +56,7 @@ class CssBorder {
 
   /// Creates a copy of this border with the sides from [other].
   CssBorder copyFrom(CssBorder other) => copyWith(
+        all: other._all,
         bottom: other._bottom,
         inlineEnd: other._inlineEnd,
         inlineStart: other._inlineStart,
@@ -71,6 +72,7 @@ class CssBorder {
   /// Creates a copy of this border but with the given fields
   /// replaced with the new values.
   CssBorder copyWith({
+    CssBorderSide? all,
     CssBorderSide? bottom,
     CssBorderSide? inlineEnd,
     CssBorderSide? inlineStart,
@@ -84,13 +86,16 @@ class CssBorder {
   }) =>
       CssBorder(
         inherit: inherit,
-        all: _all,
-        bottom: CssBorderSide._copyWith(_bottom, bottom),
-        inlineEnd: CssBorderSide._copyWith(_inlineEnd, inlineEnd),
-        inlineStart: CssBorderSide._copyWith(_inlineStart, inlineStart),
-        left: CssBorderSide._copyWith(_left, left),
-        right: CssBorderSide._copyWith(_right, right),
-        top: CssBorderSide._copyWith(_top, top),
+        all: CssBorderSide._copyWith(_all, all),
+        bottom: all != null ? null : CssBorderSide._copyWith(_bottom, bottom),
+        inlineEnd:
+            all != null ? null : CssBorderSide._copyWith(_inlineEnd, inlineEnd),
+        inlineStart: all != null
+            ? null
+            : CssBorderSide._copyWith(_inlineStart, inlineStart),
+        left: all != null ? null : CssBorderSide._copyWith(_left, left),
+        right: all != null ? null : CssBorderSide._copyWith(_right, right),
+        top: all != null ? null : CssBorderSide._copyWith(_top, top),
         radiusBottomLeft: radiusBottomLeft ?? this.radiusBottomLeft,
         radiusBottomRight: radiusBottomRight ?? this.radiusBottomRight,
         radiusTopLeft: radiusTopLeft ?? this.radiusTopLeft,
@@ -98,19 +103,18 @@ class CssBorder {
       );
 
   /// Calculates [Border].
-  Border? getBorder(TextStyleHtml tsh) {
-    final bottom = CssBorderSide._copyWith(_all, _bottom)?._getValue(tsh);
+  Border? getBorder(InheritedProperties resolved) {
+    final isRtl = resolved.isRtl;
+    final bottom = CssBorderSide._copyWith(_all, _bottom)?._getValue(resolved);
     final left = CssBorderSide._copyWith(
       _all,
-      _left ??
-          (tsh.textDirection == TextDirection.ltr ? _inlineStart : _inlineEnd),
-    )?._getValue(tsh);
+      _left ?? (isRtl ? _inlineEnd : _inlineStart),
+    )?._getValue(resolved);
     final right = CssBorderSide._copyWith(
       _all,
-      _right ??
-          (tsh.textDirection == TextDirection.ltr ? _inlineEnd : _inlineStart),
-    )?._getValue(tsh);
-    final top = CssBorderSide._copyWith(_all, _top)?._getValue(tsh);
+      _right ?? (isRtl ? _inlineStart : _inlineEnd),
+    )?._getValue(resolved);
+    final top = CssBorderSide._copyWith(_all, _top)?._getValue(resolved);
     if (bottom == null && left == null && right == null && top == null) {
       return null;
     }
@@ -124,11 +128,11 @@ class CssBorder {
   }
 
   /// Calculates [BorderRadius].
-  BorderRadius? getBorderRadius(TextStyleHtml tsh) {
-    final topLeft = radiusTopLeft._getValue(tsh);
-    final topRight = radiusTopRight._getValue(tsh);
-    final bottomLeft = radiusBottomLeft._getValue(tsh);
-    final bottomRight = radiusBottomRight._getValue(tsh);
+  BorderRadius? getBorderRadius(InheritedProperties resolved) {
+    final topLeft = radiusTopLeft._getValue(resolved);
+    final topRight = radiusTopRight._getValue(resolved);
+    final bottomLeft = radiusBottomLeft._getValue(resolved);
+    final bottomRight = radiusBottomRight._getValue(resolved);
     if (topLeft == null &&
         topRight == null &&
         bottomLeft == null &&
@@ -158,11 +162,11 @@ class CssRadius {
   /// A radius with [x] and [y] values set to zero.
   static const zero = CssRadius(CssLength.zero, CssLength.zero);
 
-  Radius? _getValue(TextStyleHtml tsh) => this == zero
+  Radius? _getValue(InheritedProperties resolved) => this == zero
       ? null
       : Radius.elliptical(
-          x.getValue(tsh) ?? 0.0,
-          y.getValue(tsh) ?? 0.0,
+          x.getValue(resolved) ?? 0.0,
+          y.getValue(resolved) ?? 0.0,
         );
 }
 
@@ -184,27 +188,51 @@ class CssBorderSide {
   /// A border that is not rendered.
   static const none = CssBorderSide();
 
-  BorderSide? _getValue(TextStyleHtml tsh) => identical(this, none)
-      ? null
-      : BorderSide(
-          color: color ?? tsh.style.color ?? const BorderSide().color,
-          // TODO: add proper support for other border styles
-          style: style != null ? BorderStyle.solid : BorderStyle.none,
-          // TODO: look for official document regarding this default value
-          // WebKit & Blink seem to follow the same (hidden?) specs
-          width: width?.getValue(tsh) ?? 1.0,
-        );
+  /// Returns `true` if either [style] or [width] is invalid.
+  ///
+  /// Border will use the default text color so [color] is not required.
+  bool get isNoOp => style == null || width?.isPositive != true;
 
-  static CssBorderSide? _copyWith(CssBorderSide? base, CssBorderSide? value) =>
-      base == null || value == none
-          ? value
-          : value == null
-              ? base
-              : CssBorderSide(
-                  color: value.color ?? base.color,
-                  style: value.style ?? base.style,
-                  width: value.width ?? base.width,
-                );
+  BorderSide? _getValue(InheritedProperties resolved) {
+    if (identical(this, none)) {
+      return null;
+    }
+
+    final scopedColor = color ?? resolved.style.color;
+    if (scopedColor == null) {
+      return null;
+    }
+
+    final scopedWidth = width?.getValue(resolved);
+    if (scopedWidth == null) {
+      return null;
+    }
+
+    return BorderSide(
+      color: scopedColor,
+      // TODO: add proper support for other border styles
+      style: style != null ? BorderStyle.solid : BorderStyle.none,
+      width: scopedWidth,
+    );
+  }
+
+  static CssBorderSide? _copyWith(CssBorderSide? base, CssBorderSide? value) {
+    final copied = base == null || value == none
+        ? value
+        : value == null
+            ? base
+            : CssBorderSide(
+                color: value.color ?? base.color,
+                style: value.style ?? base.style,
+                width: value.width ?? base.width,
+              );
+
+    if (copied?.isNoOp == true) {
+      return none;
+    }
+
+    return copied;
+  }
 }
 
 /// A length measurement.
@@ -227,7 +255,7 @@ class CssLength {
 
   /// Calculates value in logical pixel.
   double? getValue(
-    TextStyleHtml tsh, {
+    InheritedProperties resolved, {
     double? baseValue,
     double? scaleFactor,
   }) {
@@ -238,7 +266,7 @@ class CssLength {
       case CssLengthUnit.auto:
         return null;
       case CssLengthUnit.em:
-        baseValue ??= tsh.style.fontSize;
+        baseValue ??= resolved.style.fontSize;
         if (baseValue == null) {
           return null;
         }
@@ -247,8 +275,6 @@ class CssLength {
         effectiveScaleFactor = 1;
         break;
       case CssLengthUnit.percentage:
-        // TODO: remove ignore https://github.com/passsy/dart-lint/issues/27
-        // ignore: invariant_booleans
         if (baseValue == null) {
           return null;
         }
@@ -269,10 +295,7 @@ class CssLength {
 
   @override
   String toString() =>
-      number.toString() +
-      (unit == CssLengthUnit.percentage
-          ? '%'
-          : unit.toString().replaceAll('CssLengthUnit.', ''));
+      number.toString() + (unit == CssLengthUnit.percentage ? '%' : unit.name);
 }
 
 /// A set of length measurements.
@@ -335,15 +358,13 @@ class CssLengthBox {
       _inlineStart?.isPositive == true ||
       _right?.isPositive == true;
 
-  /// Calculates the left value taking text direction into account.
-  double? getValueLeft(TextStyleHtml tsh) => (_left ??
-          (tsh.textDirection == TextDirection.ltr ? _inlineStart : _inlineEnd))
-      ?.getValue(tsh);
+  /// Calculates the left length taking text direction into account.
+  CssLength? getLeft(InheritedProperties resolved) =>
+      _left ?? (resolved.isRtl ? _inlineEnd : _inlineStart);
 
-  /// Calculates the right value taking text direction into account.
-  double? getValueRight(TextStyleHtml tsh) => (_right ??
-          (tsh.textDirection == TextDirection.ltr ? _inlineEnd : _inlineStart))
-      ?.getValue(tsh);
+  /// Calculates the right length taking text direction into account.
+  CssLength? getRight(InheritedProperties resolved) =>
+      _right ?? (resolved.isRtl ? _inlineStart : _inlineEnd);
 
   @override
   String toString() {
@@ -409,7 +430,15 @@ enum CssWhitespace {
   /// Lines are broken as necessary to fill line boxes.
   normal,
 
+  /// Collapses white space as for normal,
+  /// but suppresses line breaks (text wrapping) within the source.
+  nowrap,
+
   /// Sequences of white space are preserved.
   /// Lines are only broken at newline characters in the source and at `BR`s.
   pre,
+}
+
+extension on InheritedProperties {
+  bool get isRtl => get<TextDirection>() == TextDirection.rtl;
 }

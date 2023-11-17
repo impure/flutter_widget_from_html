@@ -2,12 +2,14 @@ import 'dart:math';
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:logging/logging.dart';
+
+final _logger = Logger('fwfh.CssSizing');
 
 /// A CSS block.
 class CssBlock extends SingleChildRenderObjectWidget {
   /// Creates a CSS block.
-  const CssBlock({required Widget child, Key? key})
-      : super(child: child, key: key);
+  const CssBlock({super.child, super.key});
 
   @override
   RenderObject createRenderObject(BuildContext _) =>
@@ -54,8 +56,8 @@ class CssSizing extends SingleChildRenderObjectWidget {
 
   /// Creates a CSS sizing.
   const CssSizing({
-    required Widget child,
-    Key? key,
+    super.child,
+    super.key,
     this.maxHeight,
     this.maxWidth,
     this.minHeight,
@@ -63,7 +65,7 @@ class CssSizing extends SingleChildRenderObjectWidget {
     this.preferredAxis,
     this.preferredHeight,
     this.preferredWidth,
-  }) : super(child: child, key: key);
+  });
 
   @override
   RenderObject createRenderObject(BuildContext _) => _RenderCssSizing(
@@ -192,16 +194,27 @@ class _RenderCssSizing extends RenderProxyBox {
 
   @override
   Size computeDryLayout(BoxConstraints constraints) {
+    final scopedChild = child;
+    if (scopedChild == null) {
+      return Size.zero;
+    }
+
     final cc = _applyContraints(constraints);
-    final childSize = child!.getDryLayout(cc);
+    final childSize = scopedChild.getDryLayout(cc);
     return constraints.constrain(childSize);
   }
 
   @override
   void performLayout() {
+    final scopedChild = child;
+    if (scopedChild == null) {
+      size = constraints.smallest;
+      return;
+    }
+
     final cc = _applyContraints(constraints);
-    child!.layout(cc, parentUsesSize: true);
-    size = constraints.constrain(child!.size);
+    scopedChild.layout(cc, parentUsesSize: true);
+    size = constraints.constrain(scopedChild.size);
   }
 
   BoxConstraints _applyContraints(BoxConstraints c) {
@@ -256,15 +269,21 @@ class _RenderCssSizing extends RenderProxyBox {
     required double preferredHeight,
     required double preferredWidth,
   }) {
+    final scopedChild = child;
+    if (scopedChild == null) {
+      return null;
+    }
+
     final tightHeight = BoxConstraints.tightFor(height: preferredHeight);
     late Size sizeHeight;
     try {
-      sizeHeight = child!.getDryLayout(tightHeight);
-    } catch (error) {
-      debugPrint(
-        'Unable to guess child size '
-        '(preferred size=${preferredWidth}x$preferredHeight) '
-        'on tight height: $error',
+      sizeHeight = scopedChild.getDryLayout(tightHeight);
+    } catch (error, stackTrace) {
+      _logger.fine(
+        'Skipped guessing child size on tight height '
+        '(preferred ${preferredWidth}x$preferredHeight)',
+        error,
+        stackTrace,
       );
       return null;
     }
@@ -272,7 +291,7 @@ class _RenderCssSizing extends RenderProxyBox {
     // it's unlikely that `getDryLayout` works for tight height constraints
     // then fails for tight width so we are not doing error trapping for this:
     final tightWidth = BoxConstraints.tightFor(width: preferredWidth);
-    final sizeWidth = child!.getDryLayout(tightWidth);
+    final sizeWidth = scopedChild.getDryLayout(tightWidth);
 
     final childAspectRatio = sizeWidth.width / sizeWidth.height;
     const epsilon = 0.01;

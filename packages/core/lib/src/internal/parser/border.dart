@@ -2,6 +2,7 @@ part of '../core_parser.dart';
 
 const kCssBorder = 'border';
 const kCssBorderInherit = 'inherit';
+const kCssBorderNone = 'none';
 
 const kCssBorderRadius = 'border-radius';
 const kCssBorderRadiusSuffix = 'radius';
@@ -10,16 +11,14 @@ const kCssBorderRadiusBottomRight = 'border-bottom-right-radius';
 const kCssBorderRadiusTopLeft = 'border-top-left-radius';
 const kCssBorderRadiusTopRight = 'border-top-right-radius';
 
-final _elementBorder = Expando<CssBorder>();
-
-CssBorder tryParseBorder(BuildMetadata meta) {
-  final existing = _elementBorder[meta.element];
+CssBorder tryParseBorder(BuildTree tree) {
+  final existing = tree.getNonInherited<CssBorder>();
   if (existing != null) {
     return existing;
   }
 
   var border = const CssBorder();
-  for (final style in meta.styles) {
+  for (final style in tree.styles) {
     final key = style.property;
     if (!key.startsWith(kCssBorder)) {
       continue;
@@ -32,7 +31,9 @@ CssBorder tryParseBorder(BuildMetadata meta) {
     }
   }
 
-  return _elementBorder[meta.element] = border;
+  tree.setNonInherited<CssBorder>(border);
+
+  return border;
 }
 
 CssBorder _tryParseBorderSide(CssBorder border, css.Declaration style) {
@@ -42,9 +43,20 @@ CssBorder _tryParseBorderSide(CssBorder border, css.Declaration style) {
   }
 
   TextDecorationStyle? borderStyle;
-  CssLength? width;
   Color? color;
+  // TODO: look for official document regarding this default value
+  // WebKit & Blink seem to follow the same (hidden?) specs
+  var width = const CssLength(1);
   for (final expression in style.values) {
+    final value =
+        expression is css.LiteralTerm ? expression.valueAsString : null;
+    if (value == kCssBorderNone) {
+      borderStyle = null;
+      color = null;
+      width = CssLength.zero;
+      break;
+    }
+
     final parsedStyle = tryParseTextDecorationStyle(expression);
     if (parsedStyle != null) {
       borderStyle = parsedStyle;
@@ -64,16 +76,14 @@ CssBorder _tryParseBorderSide(CssBorder border, css.Declaration style) {
     }
   }
 
-  final borderSide = borderStyle == null
-      ? CssBorderSide.none
-      : CssBorderSide(
-          color: color,
-          style: borderStyle,
-          width: width,
-        );
+  final borderSide = CssBorderSide(
+    color: color,
+    style: borderStyle,
+    width: width,
+  );
 
   if (suffix.isEmpty) {
-    return CssBorder(all: borderSide);
+    return border.copyWith(all: borderSide);
   }
 
   switch (suffix) {

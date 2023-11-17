@@ -1,3 +1,6 @@
+// TODO: remove ignore for file when our minimum core version >= 1.0
+// ignore_for_file: deprecated_member_use
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -9,7 +12,7 @@ import 'package:golden_toolkit/golden_toolkit.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../core/test/_.dart' as core;
-import '_.dart' as helper;
+import '_.dart';
 
 const redTriangle = '''
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 50 50" width="100" height="100">
@@ -32,33 +35,30 @@ Future<void> main() async {
   <circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" />
   SVG support is not enabled.
 </svg>''';
-    final explained = await helper.explain(tester, html);
-    expect(
-      explained.replaceAll(RegExp('String#[^,]+,'), 'String,'),
-      equals('[SvgPicture:bytesLoader=SvgStringLoader]'),
-    );
+    final explained = await explain(tester, html);
+    expect(explained, equals('[SvgPicture:bytesLoader=SvgStringLoader]'));
   });
 
   group('IMG', () {
     testWidgets('renders asset picture', (WidgetTester tester) async {
-      const assetName = 'test/images/logo.svg';
+      const assetName = 'test/images/icon.svg';
       const html = '<img src="asset:$assetName" />';
-      final explained = await helper.explain(tester, html);
+      final explained = await explain(tester, html);
       expect(
         explained,
         equals(
           '[CssSizing:$sizingConstraints,child='
           '[SvgPicture:'
-          'bytesLoader=SvgAssetLoader(assetName: test/images/logo.svg, packageName: null)'
+          'bytesLoader=SvgAssetLoader(assetName: test/images/icon.svg, packageName: null)'
           ']]',
         ),
       );
     });
 
     testWidgets('renders file picture', (WidgetTester tester) async {
-      final filePath = '${Directory.current.path}/test/images/logo.svg';
+      final filePath = '${Directory.current.path}/test/images/icon.svg';
       final html = '<img src="file://$filePath" />';
-      final explained = await helper.explain(tester, html);
+      final explained = await explain(tester, html);
       expect(
         explained,
         equals(
@@ -71,10 +71,6 @@ Future<void> main() async {
     });
 
     group('MemoryPicture', () {
-      Future<String> explain(WidgetTester tester, String html) => helper
-          .explain(tester, html)
-          .then((e) => e.replaceAll(RegExp(r'\(Uint8List#.+\)'), '(bytes)'));
-
       testWidgets('renders bad data uri', (WidgetTester tester) async {
         const html = '<img src="data:image/svg+xml;xxx" />';
         final explained = await explain(tester, html);
@@ -118,7 +114,7 @@ Future<void> main() async {
         const html = '<img src="$src" />';
         const expectedLoading = '└CircularProgressIndicator';
         final loading = await HttpOverrides.runZoned(
-          () => helper.explain(tester, html, useExplainer: false),
+          () => explain(tester, html, useExplainer: false),
           createHttpClient: (_) => _createMockSvgImageHttpClient(),
         );
         expect(loading, contains('└SvgPicture'));

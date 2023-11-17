@@ -41,6 +41,40 @@ void main() {
       expect(explained, contains('[SizedBox#foo'));
     });
 
+    testWidgets('renders in AlertDialog', (WidgetTester tester) async {
+      // https://github.com/daohoangson/flutter_widget_from_html/issues/1082
+      await explain(
+        tester,
+        null,
+        hw: Builder(
+          builder: (context) {
+            return InkWell(
+              onTap: () => showDialog<void>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: HtmlWidget(
+                      '<p><a name="foo"></a><a name="bar"></a></p>',
+                      key: hwKey,
+                    ),
+                  ),
+                ),
+              ),
+              child: const Text('Tap me'),
+            );
+          },
+        ),
+      );
+
+      expect(await tapText(tester, 'Tap me'), equals(1));
+      await tester.pumpAndSettle();
+
+      final explained = await explainWithoutPumping();
+      expect(explained, contains('[SizedBox#foo:0.0x16.0]'));
+      expect(explained, contains('[SizedBox#bar:0.0x16.0]'));
+    });
+
     testWidgets('renders in ListView', (WidgetTester tester) async {
       const html = '<a name="foo"></a>Foo';
       final explained = await explain(
@@ -69,7 +103,7 @@ void main() {
               html,
               key: hwKey,
               renderMode: RenderMode.sliverList,
-            )
+            ),
           ],
         ),
         useExplainer: false,
@@ -81,6 +115,48 @@ void main() {
   });
 
   group('tap test', () {
+    testWidgets('hits id', (WidgetTester tester) async {
+      await pumpWidget(
+        tester,
+        const _ColumnTestApp(
+          html: '<div id="foo">Foo</div><a href="#foo">Tap me</a>',
+        ),
+      );
+
+      expect(await tapText(tester, 'Tap me'), equals(1));
+      await tester.pumpAndSettle();
+      expect(_onTapAnchorResults, equals({'foo': true}));
+    });
+
+    testWidgets('hits id with baseUrl specified', (WidgetTester tester) async {
+      await pumpWidget(
+        tester,
+        _ColumnTestApp(
+          baseUrl: Uri.https('domain.com', 'path'),
+          html: '<div id="foo">Foo</div><a href="#foo">Tap me</a>',
+        ),
+      );
+
+      expect(await tapText(tester, 'Tap me'), equals(1));
+      await tester.pumpAndSettle();
+      expect(_onTapAnchorResults, equals({'foo': true}));
+    });
+
+    testWidgets('hits baseUrl#id', (WidgetTester tester) async {
+      await pumpWidget(
+        tester,
+        _ColumnTestApp(
+          baseUrl: Uri.https('domain.com', 'path'),
+          html: '<div id="fragment">Foo</div>'
+              '<a href="https://domain.com/path#fragment">Tap me</a>',
+        ),
+      );
+
+      expect(await tapText(tester, 'Tap me'), equals(1));
+      await tester.pumpAndSettle();
+      expect(_onTapAnchorResults, equals({'fragment': true}));
+    });
+
     testWidgets('skips unknown id', (WidgetTester tester) async {
       await pumpWidget(
         tester,
@@ -367,31 +443,23 @@ ${htmlDesc * 3}
 final globalKey = GlobalKey<HtmlWidgetState>();
 
 Future<void> pumpWidget(WidgetTester tester, Widget child) async {
-  // TODO: remove lint ignore when our minimum Flutter version >= 3.10
-  // ignore: deprecated_member_use
-  tester.binding.window.physicalSizeTestValue = const Size(200, 200);
-  // ignore: deprecated_member_use
-  addTearDown(tester.binding.window.clearPhysicalSizeTestValue);
-  // ignore: deprecated_member_use
-  tester.binding.window.devicePixelRatioTestValue = 1.0;
-  // ignore: deprecated_member_use
-  addTearDown(tester.binding.window.clearDevicePixelRatioTestValue);
-  // ignore: deprecated_member_use
-  tester.binding.window.platformDispatcher.textScaleFactorTestValue = 1.0;
-  addTearDown(
-    // ignore: deprecated_member_use
-    tester.binding.window.platformDispatcher.clearTextScaleFactorTestValue,
-  );
+  tester.setWindowSize(const Size(200, 200));
+  tester.setTextScaleFactor(1);
 
   await tester.pumpWidget(MaterialApp(home: child));
   await tester.pump();
 }
 
 class _ColumnTestApp extends StatelessWidget {
+  final Uri? baseUrl;
   final String? html;
   final Key? keyBottom;
 
-  const _ColumnTestApp({this.html, Key? key, this.keyBottom}) : super(key: key);
+  const _ColumnTestApp({
+    this.baseUrl,
+    this.html,
+    this.keyBottom,
+  });
 
   @override
   Widget build(BuildContext _) => Scaffold(
@@ -400,6 +468,7 @@ class _ColumnTestApp extends StatelessWidget {
             children: [
               HtmlWidget(
                 html ?? htmlDefault,
+                baseUrl: baseUrl,
                 factoryBuilder: () => _WidgetFactory(),
                 key: globalKey,
               ),
@@ -413,7 +482,7 @@ class _ColumnTestApp extends StatelessWidget {
 class _ListViewTestApp extends StatelessWidget {
   final String? html;
 
-  const _ListViewTestApp({this.html, Key? key}) : super(key: key);
+  const _ListViewTestApp({this.html});
 
   @override
   Widget build(BuildContext _) => Scaffold(
@@ -429,7 +498,7 @@ class _ListViewTestApp extends StatelessWidget {
 class _SliverListTestApp extends StatelessWidget {
   final Key? keyBottom;
 
-  const _SliverListTestApp({Key? key, this.keyBottom}) : super(key: key);
+  const _SliverListTestApp({this.keyBottom});
 
   @override
   Widget build(BuildContext _) => Scaffold(

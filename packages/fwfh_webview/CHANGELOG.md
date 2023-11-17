@@ -1,3 +1,19 @@
+## 0.14.2
+
+- Requires Flutter 3.7 (#899)
+- Refactor: safer typing (#911)
+- Improve observability with better logging (#912)
+- Add support for flutter_widget_from_html_core@0.14.0 (#948)
+
+## 0.9.0+2
+
+- Add support for fullscreen webview in Android (#1022)
+
+## 0.8.0
+
+- Assume HTTPS for protocol relative URL without base (#1016)
+- Add screenshots, funding and topics to pubspec files (#1010)
+
 ## 0.7.0+2
 
 - Add support for Flutter 3.10 (#889)

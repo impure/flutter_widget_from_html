@@ -24,7 +24,7 @@ CssLength? tryParseCssLength(css.Expression expression) {
     }
 
     switch (expression.valueAsString) {
-      case 'auto':
+      case kCssLengthAuto:
         return const CssLength(1, CssLengthUnit.auto);
     }
   }
@@ -94,10 +94,10 @@ CssLengthBox? _parseCssLengthBoxOne(
   return box;
 }
 
-CssLengthBox? tryParseCssLengthBox(BuildMetadata meta, String prefix) {
+CssLengthBox? tryParseCssLengthBox(BuildTree tree, String prefix) {
   CssLengthBox? output;
 
-  for (final style in meta.styles) {
+  for (final style in tree.styles) {
     final key = style.property;
     if (!key.startsWith(prefix)) {
       continue;

@@ -33,11 +33,11 @@ class AudioPlayer extends StatefulWidget {
   const AudioPlayer(
     this.url, {
     this.autoplay = false,
-    Key? key,
+    super.key,
     this.loop = false,
     this.muted = false,
     this.preload = false,
-  }) : super(key: key);
+  });
 
   @override
   State<AudioPlayer> createState() => _AudioPlayerState();
@@ -89,8 +89,9 @@ class _AudioPlayerState extends State<AudioPlayer> {
         builder: (_, bc) {
           final isNarrow = bc.hasBoundedWidth && bc.maxWidth <= 320;
           final theme = Theme.of(context);
-          final iconSize = DefaultTextStyle.of(context).style.fontSize! *
-              MediaQuery.of(context).textScaleFactor;
+          final fontSize = DefaultTextStyle.of(context).style.fontSize ?? 14.0;
+          final tsf = MediaQuery.textScaleFactorOf(context);
+          final iconSize = fontSize * tsf;
 
           return DecoratedBox(
             decoration: BoxDecoration(
@@ -140,12 +141,11 @@ class _PlayButton extends StatelessWidget {
   final Stream<bool> stream;
 
   const _PlayButton({
-    Key? key,
     required this.pause,
     required this.play,
     required this.size,
     required this.stream,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext _) => StreamBuilder<bool>(
@@ -168,12 +168,11 @@ class _PositionText extends StatelessWidget {
   final double size;
 
   const _PositionText({
-    Key? key,
     required this.durationStream,
     required this.isNarrow,
     required this.positionStream,
     required this.size,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext _) => StreamBuilder<Duration?>(
@@ -215,12 +214,11 @@ class _PositionSlider extends StatelessWidget {
   final double size;
 
   const _PositionSlider({
-    Key? key,
     required this.durationStream,
     required this.positionStream,
     required this.seek,
     required this.size,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) => StreamBuilder<Duration?>(
@@ -258,11 +256,10 @@ class _MuteButton extends StatelessWidget {
   final Stream<double> stream;
 
   const _MuteButton({
-    Key? key,
     required this.setVolume,
     required this.size,
     required this.stream,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext _) => StreamBuilder<double>(

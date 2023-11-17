@@ -15,23 +15,20 @@ class HtmlListMarker extends LeafRenderObjectWidget {
   const HtmlListMarker({
     required this.markerType,
     required this.textStyle,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   /// Creates a circle marker.
-  const HtmlListMarker.circle(this.textStyle, {Key? key})
-      : markerType = HtmlListMarkerType.circle,
-        super(key: key);
+  const HtmlListMarker.circle(this.textStyle, {super.key})
+      : markerType = HtmlListMarkerType.circle;
 
   /// Creates a disc marker.
-  const HtmlListMarker.disc(this.textStyle, {Key? key})
-      : markerType = HtmlListMarkerType.disc,
-        super(key: key);
+  const HtmlListMarker.disc(this.textStyle, {super.key})
+      : markerType = HtmlListMarkerType.disc;
 
   /// Creates a square marker.
-  const HtmlListMarker.square(this.textStyle, {Key? key})
-      : markerType = HtmlListMarkerType.square,
-        super(key: key);
+  const HtmlListMarker.square(this.textStyle, {super.key})
+      : markerType = HtmlListMarkerType.square;
 
   @override
   RenderObject createRenderObject(BuildContext _) =>
@@ -114,9 +111,9 @@ class _ListMarkerRenderObject extends RenderBox {
     final center = offset +
         Offset(
           size.width / 2,
-          (m?.descent.isFinite == true && m?.unscaledAscent.isFinite == true)
+          (m != null && m.descent.isFinite && m.unscaledAscent.isFinite)
               ? size.height -
-                  m!.descent -
+                  m.descent -
                   m.unscaledAscent +
                   m.unscaledAscent * .7
               : size.height / 2,

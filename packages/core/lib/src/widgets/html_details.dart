@@ -9,8 +9,8 @@ class HtmlDetails extends StatefulWidget {
   const HtmlDetails({
     required this.child,
     this.open = false,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<HtmlDetails> createState() => _HtmlDetailsState();
@@ -51,7 +51,7 @@ class _HtmlDetailsState extends State<HtmlDetails> {
 class HtmlDetailsContents extends StatelessWidget {
   final Widget child;
 
-  const HtmlDetailsContents({required this.child, Key? key}) : super(key: key);
+  const HtmlDetailsContents({required this.child, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +63,7 @@ class HtmlDetailsContents extends StatelessWidget {
 class HtmlDetailsMarker extends StatelessWidget {
   final TextStyle style;
 
-  const HtmlDetailsMarker({Key? key, required this.style}) : super(key: key);
+  const HtmlDetailsMarker({super.key, required this.style});
 
   @override
   Widget build(BuildContext context) {
@@ -86,10 +86,10 @@ class HtmlSummary extends StatelessWidget {
   final TextStyle style;
 
   const HtmlSummary({
-    Key? key,
+    super.key,
     this.child,
     required this.style,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -100,23 +100,14 @@ class HtmlSummary extends StatelessWidget {
           htmlDetails.setIsOpen(!htmlDetails.isOpen);
         }
       },
-      child: child ?? _buildDefault(context),
+      child: child,
     );
   }
+}
 
-  Widget _buildDefault(BuildContext context) {
-    // TODO: i18n
-    const text = 'Details';
-
-    return RichText(
-      text: TextSpan(
-        children: [
-          WidgetSpan(child: HtmlDetailsMarker(style: style)),
-          TextSpan(text: text, style: style),
-        ],
-      ),
-    );
-  }
+extension on BuildContext {
+  _HtmlDetailsInherited? get htmlDetails =>
+      dependOnInheritedWidgetOfExactType<_HtmlDetailsInherited>();
 }
 
 class _HtmlDetailsInherited extends InheritedWidget {
@@ -124,18 +115,12 @@ class _HtmlDetailsInherited extends InheritedWidget {
   final void Function(bool) setIsOpen;
 
   const _HtmlDetailsInherited({
-    required Widget child,
-    Key? key,
+    required super.child,
     required this.isOpen,
     required this.setIsOpen,
-  }) : super(key: key, child: child);
+  });
 
   @override
   bool updateShouldNotify(_HtmlDetailsInherited oldWidget) =>
       isOpen != oldWidget.isOpen;
-}
-
-extension _BuildContext on BuildContext {
-  _HtmlDetailsInherited? get htmlDetails =>
-      dependOnInheritedWidgetOfExactType<_HtmlDetailsInherited>();
 }

@@ -2,7 +2,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
-import 'package:flutter_widget_from_html_core/src/internal/tsh_widget.dart';
 
 export '_constants.dart';
 
@@ -29,6 +28,7 @@ Future<String> explain(
   WidgetTester tester,
   String? html, {
   String? Function(Explainer, Widget)? explainer,
+  double? height,
   Widget? hw,
   GlobalKey? key,
   bool rtl = false,
@@ -43,7 +43,7 @@ Future<String> explain(
     textStyle: textStyle,
   );
 
-  final ThemeData theme = ThemeData();
+  final ThemeData theme = ThemeData(useMaterial3: false);
 
   await tester.pumpWidget(
     MaterialApp(
@@ -61,6 +61,7 @@ Future<String> explain(
                     color: kColor,
                     fontSize: 10.0,
                     fontWeight: FontWeight.normal,
+                    height: height,
                   ),
               child: Directionality(
                 textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
@@ -143,13 +144,6 @@ Future<String> explainWithoutPumping({
     str = str.replaceAll(RegExp(r'(, )?softWrap: [a-z\s]+'), '');
     str = str.replaceAll(RegExp('(, )?textDirection: ltr+'), '');
 
-    // TODO: remove trimming when our minimum Flutter version >=3.3
-    // old versions implement `BorderSide.toString` while newer ones don't...
-    str = str.replaceAllMapped(
-      RegExp('\\(border: .+?, (\\w+:)'),
-      (m) => '(${m.group(1)}',
-    );
-
     // delete leading comma (because of property trimmings)
     str = str.replaceAll('(, ', '(');
     str = simplifyHashCode(str);
@@ -161,10 +155,13 @@ Future<String> explainWithoutPumping({
     return 'null';
   }
 
-  return Explainer(
+  var str = Explainer(
     key.currentContext!,
     explainer: explainer,
   ).explain(built);
+
+  str = str.replaceAll(RegExp('String#[^,]+,'), 'String,');
+  return str.replaceAll(RegExp('Uint8List#[0-9a-f]+,'), 'bytes,');
 }
 
 final _explainMarginRegExp = RegExp(
@@ -247,7 +244,7 @@ class Explainer {
 
   String _borderSide(BorderSide s) => s != BorderSide.none
       ? '${s.width}'
-          '@${s.style.toString().replaceFirst('BorderStyle.', '')}'
+          '@${s.style.name}'
           '${_color(s.color)}'
       : 'none';
 
@@ -275,14 +272,28 @@ class Explainer {
     final attr = <String>[];
 
     if (d is BoxDecoration) {
-      final color = d.color;
-      if (color != null) {
-        attr.add('bg=${_color(color)}');
-      }
-
       final border = d.border;
       if (border != null) {
         attr.add('border=${_boxBorder(border)}');
+      }
+
+      final color = d.color;
+      if (color != null) {
+        attr.add('color=${_color(color)}');
+      }
+
+      final image = d.image;
+      if (image != null) {
+        attr.add("image=${image.image}");
+        if (image.alignment != Alignment.topLeft) {
+          attr.add(_alignment(image.alignment));
+        }
+        if (image.fit != BoxFit.scaleDown) {
+          attr.add('fit=${image.fit?.name}');
+        }
+        if (image.repeat != ImageRepeat.noRepeat) {
+          attr.add('repeat=${image.repeat.name}');
+        }
       }
 
       final borderRadius = d.borderRadius;
@@ -445,18 +456,18 @@ class Explainer {
 
   String _textAlign(TextAlign? textAlign) =>
       (textAlign != null && textAlign != TextAlign.start)
-          ? 'align=${textAlign.toString().replaceAll('TextAlign.', '')}'
+          ? 'align=${textAlign.name}'
           : '';
 
   String _textDirection(TextDirection? textDirection) =>
       (textDirection != null && textDirection != TextDirection.ltr)
-          ? 'dir=${textDirection.toString().replaceAll('TextDirection.', '')}'
+          ? 'dir=${textDirection.name}'
           : '';
 
-  String _textOverflow(TextOverflow? textOverflow) => (textOverflow != null &&
-          textOverflow != TextOverflow.clip)
-      ? 'overflow=${textOverflow.toString().replaceAll('TextOverflow.', '')}'
-      : '';
+  String _textOverflow(TextOverflow? textOverflow) =>
+      (textOverflow != null && textOverflow != TextOverflow.clip)
+          ? 'overflow=${textOverflow.name}'
+          : '';
 
   String _textStyle(TextStyle? style, TextStyle parent) {
     var s = '';
@@ -466,7 +477,7 @@ class Explainer {
 
     final bg = style.background;
     if (bg != null) {
-      s += 'bg=${_color(bg.color)}';
+      s += 'color=${_color(bg.color)}';
     }
 
     final color = style.color;
@@ -557,6 +568,16 @@ class Explainer {
     return '+w${FontWeight.values.indexOf(fontWeight)}';
   }
 
+  List<String> _flex(Flex flex) {
+    final List<String> result = [];
+
+    result.add('direction=${flex.direction.name}');
+    result.add('mainAxisAlignment=${flex.mainAxisAlignment.name}');
+    result.add('crossAxisAlignment=${flex.crossAxisAlignment.name}');
+
+    return result;
+  }
+
   String _widget(Widget widget) {
     final explained = explainer?.call(this, widget);
     if (explained != null) {
@@ -567,12 +588,50 @@ class Explainer {
       return '[widget0]';
     }
 
+    if (widget is LayoutBuilder) {
+      return _widget(
+        widget.builder(
+          context,
+          BoxConstraints.loose(
+            // TODO: remove lint ignore when our minimum Flutter version >= 3.10
+            // ignore: deprecated_member_use
+            TestWidgetsFlutterBinding.instance.window.physicalSize,
+          ),
+        ),
+      );
+    }
+
+    if (widget is HtmlDetails) {
+      return '[HtmlDetails:open=${widget.open},child=${_widget(widget.child)}]';
+    }
+
+    if (widget is HtmlDetailsContents) {
+      return '[HtmlDetailsContents:child=${_widget(widget.child)}]';
+    }
+
     if (widget is HtmlListMarker) {
       return _htmlListMarker(widget);
     }
 
-    if (widget is TshWidget) {
-      return _widget(widget.child);
+    if (widget is HtmlSummary) {
+      final child = widget.child;
+      return '[HtmlSummary:child=${child != null ? _widget(child) : null}]';
+    }
+
+    if (widget is InheritedWidget) {
+      if (widget.runtimeType.toString() == 'TshWidget') {
+        // v0.5+
+        return _widget(widget.child);
+      }
+      if (widget.runtimeType.toString() == '_RootWidget') {
+        // v0.14+
+        return _widget(widget.child);
+      }
+    }
+
+    if (widget.runtimeType.toString() == 'InlineCustomWidget') {
+      // ignore: avoid_dynamic_calls
+      return _widget((widget as dynamic).child as Widget);
     }
 
     if (widget.runtimeType.toString() == 'ValignBaselineContainer') {
@@ -584,10 +643,10 @@ class Explainer {
       return _widget(widget.build(context));
     }
 
-    if (widget.runtimeType.toString() == '_MinWidthZero') {
+    if (widget.runtimeType.toString() == '_MinWidthZero' &&
+        widget is ConstraintsTransformBox) {
       // TODO: verify min-width resetter in tests when it's stable
-      // ignore: avoid_dynamic_calls
-      return _widget((widget as dynamic).child as Widget);
+      return _widget(widget.child!);
     }
 
     if (widget is Image) {
@@ -608,6 +667,15 @@ class Explainer {
             : null;
     if (maxLines != null) {
       attr.add('maxLines=$maxLines');
+    }
+
+    final softWrap = widget is RichText
+        ? widget.softWrap
+        : widget is Text
+            ? widget.softWrap
+            : null;
+    if (softWrap == false) {
+      attr.add('softWrap=$softWrap');
     }
 
     attr.add(
@@ -638,12 +706,27 @@ class Explainer {
       ),
     );
 
-    if (widget is Align && widget is! Center) {
-      attr.add(_alignment(widget.alignment));
+    if (widget is Align) {
+      if (widget is! Center) {
+        attr.add(_alignment(widget.alignment));
+      }
+      if (widget.heightFactor != null) {
+        attr.add('heightFactor=${widget.heightFactor}');
+      }
+      if (widget.widthFactor != null) {
+        attr.add('widthFactor=${widget.widthFactor}');
+      }
     }
 
     if (widget is AspectRatio) {
       attr.add('aspectRatio=${widget.aspectRatio.toStringAsFixed(1)}');
+    }
+
+    if (widget is Column) {
+      final caa = widget.crossAxisAlignment;
+      if (caa != CrossAxisAlignment.start) {
+        attr.add('crossAxisAlignment=${caa.name}');
+      }
     }
 
     if (widget is ConstrainedBox) {
@@ -656,10 +739,6 @@ class Explainer {
 
     if (widget is CssSizing) {
       attr.addAll(_cssSizing(widget));
-    }
-
-    if (widget is DecoratedBox) {
-      attr.addAll(_boxDecoration(widget.decoration));
     }
 
     if (widget is LimitedBox) {
@@ -677,8 +756,29 @@ class Explainer {
       );
     }
 
+    if (widget is SingleChildRenderObjectWidget) {
+      final dynamicWidget = widget as dynamic;
+      switch (widget.runtimeType.toString()) {
+        case 'HorizontalMargin':
+          // TODO: remove ignore when our minimum core version >= 1.0
+          // ignore: avoid_dynamic_calls
+          final left = dynamicWidget.left as double;
+          // ignore: avoid_dynamic_calls
+          final right = dynamicWidget.right as double;
+          attr.add(
+            'left=${left.isInfinite ? '∞' : left.truncate()},'
+            'right=${right.isInfinite ? '∞' : right.truncate()}',
+          );
+          break;
+      }
+    }
+
     if (widget is Tooltip) {
       attr.add('message=${widget.message}');
+    }
+
+    if (widget is! Column && (widget is Flex)) {
+      attr.addAll(_flex(widget));
     }
 
     // Special cases
@@ -741,8 +841,7 @@ class HitTestApp extends StatelessWidget {
   final String html;
   final List<String> list;
 
-  const HitTestApp({required this.html, Key? key, required this.list})
-      : super(key: key);
+  const HitTestApp({required this.html, super.key, required this.list});
 
   @override
   Widget build(BuildContext _) => MaterialApp(
@@ -756,6 +855,45 @@ class HitTestApp extends StatelessWidget {
           ),
         ),
       );
+}
+
+extension RenderBoxGetter on GlobalKey {
+  RenderBox get renderBox => currentContext!.findRenderObject()! as RenderBox;
+
+  Size get size => renderBox.size;
+
+  double get width => size.width;
+}
+
+extension WindowTester on WidgetTester {
+  double get windowWidth =>
+      // TODO: remove lint ignore when our minimum Flutter version >= 3.10
+      // ignore: deprecated_member_use
+      binding.window.physicalSize.width /
+      // ignore: deprecated_member_use
+      binding.window.devicePixelRatio;
+
+  void setTextScaleFactor(double value) {
+    // TODO: remove lint ignore when our minimum Flutter version >= 3.10
+    // ignore: deprecated_member_use
+    binding.window.platformDispatcher.textScaleFactorTestValue = value;
+    addTearDown(
+      // ignore: deprecated_member_use
+      binding.window.platformDispatcher.clearTextScaleFactorTestValue,
+    );
+  }
+
+  void setWindowSize(Size size) {
+    // TODO: remove lint ignore when our minimum Flutter version >= 3.10
+    // ignore: deprecated_member_use
+    binding.window.physicalSizeTestValue = size;
+    // ignore: deprecated_member_use
+    addTearDown(binding.window.clearPhysicalSizeTestValue);
+    // ignore: deprecated_member_use
+    binding.window.devicePixelRatioTestValue = 1.0;
+    // ignore: deprecated_member_use
+    addTearDown(binding.window.clearDevicePixelRatioTestValue);
+  }
 }
 
 class _TextFinder extends MatchFinder {
