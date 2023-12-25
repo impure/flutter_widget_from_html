@@ -1,3 +1,18 @@
+## 0.14.9
+
+- Fix justify text inside a table (#1120)
+
+## 0.14.8
+
+- Fix IFRAME does not respect width attribute (#1115)
+
+## 0.14.7
+
+- Add support for Flutter 3.13.9 (#1093)
+- Add support for Flutter 3.16.0 (#1100)
+- Fix `onTapUrl` doesn't work for links with `display: block` (#1104)
+- Render video player on macOS (#1100)
+
 ## 0.14.6
 
 - Add support for `background-image` (#1057, authored by @anttileppa 🎉)

@@ -174,6 +174,9 @@ Future<void> main() async {
       final table = tester.table;
       expect(table.border, isNotNull);
       expect(tester.table.borderSpacing, equals(2.0));
+
+      // default border color must match text color
+      expect(table.border?.top.color, equals(const Color(0xFF001234)));
     });
 
     testWidgets('renders style', (WidgetTester tester) async {
@@ -519,6 +522,14 @@ Future<void> main() async {
       final box = tester.firstRenderObject(containerFinder) as RenderBox;
       expect(box.size.width, equals(foo.width));
       expect(box.size.height, greaterThan(.0));
+    });
+
+    testWidgets('renders P tag inside justify', (WidgetTester tester) async {
+      // https://github.com/daohoangson/flutter_widget_from_html/issues/1118
+      const html =
+          '<table style="text-align: justify;"><tr><td><p>Foo</p></td></tr></table>';
+      final explained = await explain(tester, html);
+      expect(explained, contains('[RichText:align=justify,(:Foo)]'));
     });
   });
 
