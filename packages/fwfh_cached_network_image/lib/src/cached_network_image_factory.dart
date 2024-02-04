@@ -18,10 +18,10 @@ mixin CachedNetworkImageFactory on WidgetFactory {
       return super.buildImageWidget(meta, src);
     }
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.all(Radius.circular(10)),
-      child: Hero(
-				tag: url,
+    return Hero(
+			tag: url,
+			child: ClipRRect(
+				borderRadius: const BorderRadius.all(Radius.circular(10)),
 				child: CachedNetworkImage(
 					cacheManager: cacheManager,
 					errorWidget: (context, _, error) =>
@@ -34,7 +34,7 @@ mixin CachedNetworkImageFactory on WidgetFactory {
 						return onLoadingBuilder(context, meta, v, src) ?? widget0;
 					},
 				),
-			),
-    );
+	    ),
+		);
   }
 }
